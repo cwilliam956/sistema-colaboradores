@@ -204,4 +204,300 @@ class SistemaColaboradores {
             const resultado = await response.json();
 
             if (response.ok) {
-                this
+                this.mostrarAlerta(
+                    id ? 'Colaborador atualizado com sucesso!' : 'Colaborador cadastrado com sucesso!',
+                    'success'
+                );
+                await this.carregarColaboradores();
+                this.fecharModalCadastro();
+            } else {
+                throw new Error(resultado.error || 'Erro ao salvar colaborador');
+            }
+        } catch (error) {
+            this.mostrarAlerta(error.message, 'danger');
+        }
+    }
+
+    async editarColaborador(id) {
+        try {
+            const response = await fetch(`${this.baseURL}/colaboradores/${id}`);
+            const colaborador = await response.json();
+
+            if (colaborador) {
+                document.getElementById('colaboradorId').value = colaborador.id;
+                document.getElementById('nomeCompleto').value = colaborador.nome_completo;
+                document.getElementById('re').value = colaborador.re;
+                document.getElementById('cargo').value = colaborador.cargo;
+                document.getElementById('salarioAtual').value = colaborador.salario_atual;
+                document.getElementById('empresaId').value = colaborador.empresa_id;
+                document.getElementById('dataAdmissao').value = colaborador.data_admissao;
+                document.getElementById('statusAtivo').checked = colaborador.status === 'Ativo';
+                
+                document.getElementById('modalTitulo').innerHTML = `
+                    <i class="bi bi-pencil me-2"></i>
+                    Editar Colaborador
+                `;
+                
+                const modal = new bootstrap.Modal(document.getElementById('modalCadastro'));
+                modal.show();
+            }
+        } catch (error) {
+            this.mostrarAlerta('Erro ao carregar dados do colaborador', 'danger');
+        }
+    }
+
+    async toggleStatus(id, statusAtual) {
+        const novoStatus = statusAtual === 'Ativo' ? 'Inativo' : 'Ativo';
+        
+        this.mostrarConfirmacao(
+            `${novoStatus === 'Ativo' ? 'Reativar' : 'Inativar'} Colaborador`,
+            `Deseja realmente ${novoStatus === 'Ativo' ? 'reativar' : 'inativar'} este colaborador?`,
+            novoStatus === 'Ativo' ? 'success' : 'danger',
+            async () => {
+                try {
+                    const response = await fetch(`${this.baseURL}/colaboradores/${id}/status`, {
+                        method: 'PATCH',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ status: novoStatus })
+                    });
+
+                    if (response.ok) {
+                        this.mostrarAlerta(
+                            `Colaborador ${novoStatus === 'Ativo' ? 'reativado' : 'inativado'} com sucesso!`,
+                            'success'
+                        );
+                        await this.carregarColaboradores();
+                    }
+                } catch (error) {
+                    this.mostrarAlerta('Erro ao alterar status do colaborador', 'danger');
+                }
+            }
+        );
+    }
+
+    async abrirModalReajuste(id) {
+        try {
+            const response = await fetch(`${this.baseURL}/colaboradores/${id}`);
+            const colaborador = await response.json();
+
+            if (colaborador) {
+                document.getElementById('reajusteColaboradorId').value = colaborador.id;
+                document.getElementById('reajusteSalarioAtual').value = colaborador.salario_atual;
+                document.getElementById('reajusteNomeColaborador').textContent = colaborador.nome_completo;
+                document.getElementById('reajusteInfoSalario').innerHTML = `
+                    Cargo: <strong>${colaborador.cargo}</strong><br>
+                    Salário atual: <strong class="text-primary">R$ ${this.formatarMoeda(colaborador.salario_atual)}</strong>
+                `;
+                
+                // Atualizar resumo
+                this.calcularReajuste();
+                
+                // Mostrar/ocultar campo de bônus
+                const bonusDiv = document.getElementById('infoBonus').parentElement;
+                if (colaborador.salario_atual < 1500) {
+                    bonusDiv.style.display = 'block';
+                    document.getElementById('infoBonus').innerHTML = `
+                        Disponível para salários abaixo de R$ 1.500,00
+                        <span class="badge bg-success ms-2">Disponível</span>
+                    `;
+                } else {
+                    bonusDiv.style.display = 'none';
+                }
+
+                const modal = new bootstrap.Modal(document.getElementById('modalReajuste'));
+                modal.show();
+            }
+        } catch (error) {
+            this.mostrarAlerta('Erro ao carregar dados para reajuste', 'danger');
+        }
+    }
+
+    calcularReajuste() {
+        const salarioAtual = parseFloat(document.getElementById('reajusteSalarioAtual').value);
+        const percentual = parseFloat(document.getElementById('percentualAumento').value) || 0;
+        const bonus = parseFloat(document.getElementById('bonusAdicional').value) || 0;
+        
+        let aumento = salarioAtual * (percentual / 100);
+        let novoSalario = salarioAtual + aumento;
+        
+        // Aplicar bônus apenas se salário < 1500
+        if (salarioAtual < 1500) {
+            novoSalario += bonus;
+        }
+        
+        const aumentoTotal = novoSalario - salarioAtual;
+        
+        document.getElementById('resumoSalarioAtual').textContent = 
+            `R$ ${this.formatarMoeda(salarioAtual)}`;
+        document.getElementById('resumoNovoSalario').textContent = 
+            `R$ ${this.formatarMoeda(novoSalario)}`;
+        document.getElementById('resumoAumento').textContent = 
+            `R$ ${this.formatarMoeda(aumentoTotal)} (${percentual}%)`;
+    }
+
+    async aplicarReajuste() {
+        const id = document.getElementById('reajusteColaboradorId').value;
+        const percentual = parseFloat(document.getElementById('percentualAumento').value);
+        const bonus = document.getElementById('bonusAdicional').value ? 
+            parseFloat(document.getElementById('bonusAdicional').value) : null;
+
+        if (!percentual || percentual <= 0) {
+            this.mostrarAlerta('Informe um percentual válido', 'warning');
+            return;
+        }
+
+        try {
+            const response = await fetch(`${this.baseURL}/colaboradores/${id}/reajuste`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ percentual, bonus })
+            });
+
+            const resultado = await response.json();
+
+            if (response.ok) {
+                this.mostrarAlerta(
+                    `Reajuste aplicado com sucesso! Novo salário: R$ ${this.formatarMoeda(resultado.novoSalario)}`,
+                    'success'
+                );
+                await this.carregarColaboradores();
+                this.fecharModalReajuste();
+            } else {
+                throw new Error(resultado.error || 'Erro ao aplicar reajuste');
+            }
+        } catch (error) {
+            this.mostrarAlerta(error.message, 'danger');
+        }
+    }
+
+    fecharModalCadastro() {
+        const modal = bootstrap.Modal.getInstance(document.getElementById('modalCadastro'));
+        modal.hide();
+        this.limparFormulario();
+    }
+
+    fecharModalReajuste() {
+        const modal = bootstrap.Modal.getInstance(document.getElementById('modalReajuste'));
+        modal.hide();
+        document.getElementById('formReajuste').reset();
+    }
+
+    limparFormulario() {
+        document.getElementById('formColaborador').reset();
+        document.getElementById('colaboradorId').value = '';
+        document.getElementById('modalTitulo').innerHTML = `
+            <i class="bi bi-person-plus me-2"></i>
+            Novo Colaborador
+        `;
+        document.getElementById('statusAtivo').checked = true;
+        document.getElementById('dataAdmissao').value = new Date().toISOString().split('T')[0];
+    }
+
+    mostrarAlerta(mensagem, tipo) {
+        const alertContainer = document.getElementById('alertContainer');
+        
+        const alert = document.createElement('div');
+        alert.className = `alert alert-${tipo} alert-dismissible fade show`;
+        alert.role = 'alert';
+        alert.innerHTML = `
+            <div class="d-flex align-items-center">
+                <i class="bi ${tipo === 'success' ? 'bi-check-circle' : tipo === 'danger' ? 'bi-exclamation-triangle' : 'bi-info-circle'} me-2"></i>
+                <div>${mensagem}</div>
+            </div>
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        `;
+        
+        alertContainer.appendChild(alert);
+        
+        setTimeout(() => {
+            if (alert.parentNode) {
+                alert.remove();
+            }
+        }, 5000);
+    }
+
+    mostrarConfirmacao(titulo, mensagem, tipo, callbackConfirmar) {
+        document.getElementById('confirmacaoHeader').className = 
+            `modal-header bg-${tipo} text-white`;
+        document.getElementById('confirmacaoMensagem').innerHTML = `
+            <div class="text-center">
+                <i class="bi ${tipo === 'danger' ? 'bi-exclamation-triangle' : 'bi-question-circle'} display-4 text-${tipo} mb-3"></i>
+                <h5>${titulo}</h5>
+                <p>${mensagem}</p>
+            </div>
+        `;
+        
+        const btnConfirmar = document.getElementById('btnConfirmarAcao');
+        btnConfirmar.className = `btn btn-${tipo}`;
+        btnConfirmar.innerHTML = `<i class="bi bi-check-circle me-1"></i> Confirmar`;
+        
+        btnConfirmar.onclick = () => {
+            const modal = bootstrap.Modal.getInstance(document.getElementById('modalConfirmacao'));
+            modal.hide();
+            if (callbackConfirmar) callbackConfirmar();
+        };
+        
+        const modal = new bootstrap.Modal(document.getElementById('modalConfirmacao'));
+        modal.show();
+    }
+
+    formatarMoeda(valor) {
+        return parseFloat(valor).toLocaleString('pt-BR', {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
+        });
+    }
+
+    configurarEventos() {
+        // Salvar colaborador
+        document.getElementById('btnSalvar').addEventListener('click', () => this.salvarColaborador());
+        
+        // Aplicar reajuste
+        document.getElementById('btnAplicarReajuste').addEventListener('click', () => this.aplicarReajuste());
+        
+        // Filtros
+        document.getElementById('filtroStatus').addEventListener('change', (e) => {
+            this.filtros.status = e.target.value;
+            this.aplicarFiltros();
+        });
+        
+        document.getElementById('filtroEmpresa').addEventListener('change', (e) => {
+            this.filtros.empresa = e.target.value;
+            this.aplicarFiltros();
+        });
+        
+        document.getElementById('buscarColaborador').addEventListener('input', (e) => {
+            this.filtros.busca = e.target.value;
+            this.aplicarFiltros();
+        });
+        
+        document.getElementById('btnBuscar').addEventListener('click', () => {
+            this.filtros.busca = document.getElementById('buscarColaborador').value;
+            this.aplicarFiltros();
+        });
+        
+        // Calcular reajuste em tempo real
+        document.getElementById('percentualAumento').addEventListener('input', () => this.calcularReajuste());
+        document.getElementById('bonusAdicional').addEventListener('input', () => this.calcularReajuste());
+        
+        // Limpar formulário ao fechar modal
+        document.getElementById('modalCadastro').addEventListener('hidden.bs.modal', () => this.limparFormulario());
+        
+        // Atualizar data atual no campo de admissão
+        document.getElementById('modalCadastro').addEventListener('show.bs.modal', () => {
+            if (!document.getElementById('dataAdmissao').value) {
+                document.getElementById('dataAdmissao').value = new Date().toISOString().split('T')[0];
+            }
+        });
+    }
+}
+
+// Inicializar sistema
+let sistema;
+document.addEventListener('DOMContentLoaded', () => {
+    sistema = new SistemaColaboradores();
+});
