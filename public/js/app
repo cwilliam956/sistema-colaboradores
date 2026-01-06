@@ -1,0 +1,207 @@
+class SistemaColaboradores {
+    constructor() {
+        this.baseURL = 'http://localhost:3000/api';
+        this.colaboradores = [];
+        this.empresas = [];
+        this.filtros = {
+            status: 'todos',
+            empresa: 'todos',
+            busca: ''
+        };
+        this.init();
+    }
+
+    async init() {
+        await this.carregarEmpresas();
+        await this.carregarColaboradores();
+        this.configurarEventos();
+        this.atualizarEstatisticas();
+    }
+
+    async carregarEmpresas() {
+        try {
+            const response = await fetch(`${this.baseURL}/empresas`);
+            this.empresas = await response.json();
+            this.preencherSelectEmpresas();
+        } catch (error) {
+            this.mostrarAlerta('Erro ao carregar empresas', 'danger');
+        }
+    }
+
+    preencherSelectEmpresas() {
+        const selectFiltro = document.getElementById('filtroEmpresa');
+        const selectCadastro = document.getElementById('empresaId');
+        
+        this.empresas.forEach(empresa => {
+            const optionFiltro = document.createElement('option');
+            optionFiltro.value = empresa.id;
+            optionFiltro.textContent = empresa.nome;
+            selectFiltro.appendChild(optionFiltro);
+            
+            const optionCadastro = document.createElement('option');
+            optionCadastro.value = empresa.id;
+            optionCadastro.textContent = empresa.nome;
+            selectCadastro.appendChild(optionCadastro);
+        });
+    }
+
+    async carregarColaboradores() {
+        try {
+            const response = await fetch(`${this.baseURL}/colaboradores`);
+            this.colaboradores = await response.json();
+            this.aplicarFiltros();
+        } catch (error) {
+            this.mostrarAlerta('Erro ao carregar colaboradores', 'danger');
+        }
+    }
+
+    aplicarFiltros() {
+        let colaboradoresFiltrados = [...this.colaboradores];
+        
+        // Filtrar por status
+        if (this.filtros.status !== 'todos') {
+            colaboradoresFiltrados = colaboradoresFiltrados.filter(
+                c => c.status === this.filtros.status
+            );
+        }
+        
+        // Filtrar por empresa
+        if (this.filtros.empresa !== 'todos') {
+            colaboradoresFiltrados = colaboradoresFiltrados.filter(
+                c => c.empresa_id == this.filtros.empresa
+            );
+        }
+        
+        // Filtrar por busca
+        if (this.filtros.busca) {
+            const busca = this.filtros.busca.toLowerCase();
+            colaboradoresFiltrados = colaboradoresFiltrados.filter(
+                c => c.nome_completo.toLowerCase().includes(busca) || 
+                     c.re.toLowerCase().includes(busca)
+            );
+        }
+        
+        this.renderizarTabela(colaboradoresFiltrados);
+        this.atualizarEstatisticas(colaboradoresFiltrados);
+    }
+
+    renderizarTabela(colaboradores) {
+        const tbody = document.getElementById('corpoTabela');
+        const loadingRow = document.getElementById('loadingRow');
+        
+        if (loadingRow) {
+            loadingRow.remove();
+        }
+        
+        tbody.innerHTML = '';
+
+        if (colaboradores.length === 0) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="8" class="text-center py-5 text-muted">
+                        <i class="bi bi-people display-6 d-block mb-3"></i>
+                        Nenhum colaborador encontrado
+                    </td>
+                </tr>
+            `;
+            return;
+        }
+
+        colaboradores.forEach(colab => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td>
+                    <span class="badge ${colab.status === 'Ativo' ? 'bg-success' : 'bg-danger'} rounded-pill">
+                        <i class="bi ${colab.status === 'Ativo' ? 'bi-check-circle' : 'bi-x-circle'} me-1"></i>
+                        ${colab.status}
+                    </span>
+                </td>
+                <td>
+                    <div class="fw-bold">${colab.nome_completo}</div>
+                    <small class="text-muted">Admitido em ${new Date(colab.data_admissao).toLocaleDateString('pt-BR')}</small>
+                </td>
+                <td>
+                    <span class="badge bg-secondary">${colab.re}</span>
+                </td>
+                <td>${colab.cargo}</td>
+                <td>
+                    <span class="fw-bold text-primary">R$ ${this.formatarMoeda(colab.salario_atual)}</span>
+                </td>
+                <td>
+                    ${colab.salario_anterior ? 
+                        `<span class="text-muted">R$ ${this.formatarMoeda(colab.salario_anterior)}</span>` : 
+                        '<span class="text-muted">-</span>'
+                    }
+                </td>
+                <td>${colab.empresas?.nome || '-'}</td>
+                <td>
+                    <div class="btn-group" role="group">
+                        <button class="btn btn-sm btn-outline-primary" onclick="sistema.editarColaborador(${colab.id})"
+                                title="Editar" ${colab.status === 'Inativo' ? 'disabled' : ''}>
+                            <i class="bi bi-pencil"></i>
+                        </button>
+                        <button class="btn btn-sm ${colab.status === 'Ativo' ? 'btn-outline-danger' : 'btn-outline-success'}" 
+                                onclick="sistema.toggleStatus(${colab.id}, '${colab.status}')"
+                                title="${colab.status === 'Ativo' ? 'Inativar' : 'Ativar'}">
+                            <i class="bi ${colab.status === 'Ativo' ? 'bi-person-dash' : 'bi-person-check'}"></i>
+                        </button>
+                        <button class="btn btn-sm btn-outline-warning" 
+                                onclick="sistema.abrirModalReajuste(${colab.id})"
+                                title="Reajuste Salarial" ${colab.status === 'Inativo' ? 'disabled' : ''}>
+                            <i class="bi bi-cash-coin"></i>
+                        </button>
+                    </div>
+                </td>
+            `;
+            tbody.appendChild(tr);
+        });
+    }
+
+    atualizarEstatisticas(colaboradoresFiltrados = null) {
+        const colaboradores = colaboradoresFiltrados || this.colaboradores;
+        
+        const total = colaboradores.length;
+        const ativos = colaboradores.filter(c => c.status === 'Ativo').length;
+        const inativos = colaboradores.filter(c => c.status === 'Inativo').length;
+        
+        document.getElementById('totalColaboradores').textContent = total;
+        document.getElementById('ativosColaboradores').textContent = ativos;
+        document.getElementById('inativosColaboradores').textContent = inativos;
+        document.getElementById('totalMostrados').textContent = total;
+        document.getElementById('totalRegistros').textContent = this.colaboradores.length;
+    }
+
+    async salvarColaborador() {
+        const form = document.getElementById('formColaborador');
+        if (!form.checkValidity()) {
+            form.reportValidity();
+            return;
+        }
+
+        const colaborador = {
+            nome_completo: document.getElementById('nomeCompleto').value,
+            re: document.getElementById('re').value,
+            cargo: document.getElementById('cargo').value,
+            salario_atual: parseFloat(document.getElementById('salarioAtual').value),
+            empresa_id: parseInt(document.getElementById('empresaId').value),
+            status: document.getElementById('statusAtivo').checked ? 'Ativo' : 'Inativo',
+            data_admissao: document.getElementById('dataAdmissao').value || new Date().toISOString().split('T')[0]
+        };
+
+        const id = document.getElementById('colaboradorId').value;
+        const url = id ? `${this.baseURL}/colaboradores/${id}` : `${this.baseURL}/colaboradores`;
+        const method = id ? 'PUT' : 'POST';
+
+        try {
+            const response = await fetch(url, {
+                method: method,
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(colaborador)
+            });
+
+            const resultado = await response.json();
+
+            if (response.ok) {
+                this
