@@ -25,7 +25,13 @@ app.get('/api/colaboradores', async (req, res) => {
     try {
         const { data, error } = await supabase
             .from('colaboradores')
-            .select('*')
+            .select(`
+                *,
+                empresas (
+                    id,
+                    nome
+                )
+            `)
             .order('nome_completo');
         
         if (error) throw error;
@@ -38,7 +44,11 @@ app.get('/api/colaboradores', async (req, res) => {
 app.post('/api/colaboradores', async (req, res) => {
     try {
         const colaborador = {
-            ...req.body,
+            nome_completo: req.body.nome_completo,
+            re: req.body.re,
+            cargo: req.body.cargo,
+            salario_atual: req.body.salario_atual,
+            empresa_id: req.body.empresa_id,
             salario_anterior: null,
             status: 'Ativo',
             data_admissao: new Date().toISOString().split('T')[0]
@@ -46,10 +56,17 @@ app.post('/api/colaboradores', async (req, res) => {
         
         const { data, error } = await supabase
             .from('colaboradores')
-            .insert([colaborador]);
+            .insert([colaborador])
+            .select(`
+                *,
+                empresas (
+                    id,
+                    nome
+                )
+            `);
         
         if (error) throw error;
-        res.json({ success: true, id: data[0].id });
+        res.json(data[0]);
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
@@ -59,11 +76,25 @@ app.put('/api/colaboradores/:id', async (req, res) => {
     try {
         const { data, error } = await supabase
             .from('colaboradores')
-            .update(req.body)
-            .eq('id', req.params.id);
+            .update({
+                nome_completo: req.body.nome_completo,
+                re: req.body.re,
+                cargo: req.body.cargo,
+                salario_atual: req.body.salario_atual,
+                empresa_id: req.body.empresa_id,
+                status: req.body.status
+            })
+            .eq('id', req.params.id)
+            .select(`
+                *,
+                empresas (
+                    id,
+                    nome
+                )
+            `);
         
         if (error) throw error;
-        res.json({ success: true });
+        res.json(data[0]);
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
@@ -73,16 +104,23 @@ app.patch('/api/colaboradores/:id/status', async (req, res) => {
     try {
         const { status } = req.body;
         
-        const { error } = await supabase
+        const { data, error } = await supabase
             .from('colaboradores')
             .update({ 
                 status: status,
                 data_desativacao: status === 'Inativo' ? new Date().toISOString().split('T')[0] : null
             })
-            .eq('id', req.params.id);
+            .eq('id', req.params.id)
+            .select(`
+                *,
+                empresas (
+                    id,
+                    nome
+                )
+            `);
         
         if (error) throw error;
-        res.json({ success: true });
+        res.json(data[0]);
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
@@ -105,22 +143,45 @@ app.post('/api/colaboradores/:id/reajuste', async (req, res) => {
         if (colaborador.salario_atual < 1500 && bonus) {
             novoSalario += bonus;
         }
-                const { error: updateError } = await supabase
+        
+        const { data: updatedColab, error: updateError } = await supabase
             .from('colaboradores')
             .update({
                 salario_anterior: colaborador.salario_atual,
                 salario_atual: novoSalario
             })
-            .eq('id', req.params.id);
+            .eq('id', req.params.id)
+            .select(`
+                *,
+                empresas (
+                    id,
+                    nome
+                )
+            `);
         
         if (updateError) throw updateError;
         
         res.json({ 
             success: true, 
             novoSalario: novoSalario,
-            salarioAnterior: colaborador.salario_atual
+            salarioAnterior: colaborador.salario_atual,
+            colaborador: updatedColab[0]
         });
         
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+app.get('/api/empresas', async (req, res) => {
+    try {
+        const { data, error } = await supabase
+            .from('empresas')
+            .select('*')
+            .order('nome');
+        
+        if (error) throw error;
+        res.json(data || []);
     } catch (error) {
         res.status(500).json({ error: error.message });
     }

@@ -1,6 +1,32 @@
 const API_URL = 'http://localhost:3000/api';
+let empresas = [];
 
-document.addEventListener('DOMContentLoaded', carregarColaboradores);
+document.addEventListener('DOMContentLoaded', async () => {
+    await carregarEmpresas();
+    await carregarColaboradores();
+});
+
+async function carregarEmpresas() {
+    try {
+        const response = await fetch(`${API_URL}/empresas`);
+        empresas = await response.json();
+        preencherSelectEmpresas();
+    } catch (error) {
+        mostrarAlerta('Erro ao carregar empresas', 'danger');
+    }
+}
+
+function preencherSelectEmpresas() {
+    const select = document.getElementById('empresaId');
+    select.innerHTML = '<option value="">Selecione uma empresa</option>';
+    
+    empresas.forEach(empresa => {
+        const option = document.createElement('option');
+        option.value = empresa.id;
+        option.textContent = empresa.nome;
+        select.appendChild(option);
+    });
+}
 
 async function carregarColaboradores() {
     try {
@@ -29,16 +55,16 @@ function renderizarTabela(colaboradores) {
             <td>${colab.cargo}</td>
             <td>R$ ${formatarMoeda(colab.salario_atual)}</td>
             <td>${colab.salario_anterior ? 'R$ ' + formatarMoeda(colab.salario_anterior) : '-'}</td>
-            <td>${colab.empresa || '-'}</td>
+            <td>${colab.empresas?.nome || '-'}</td>
             <td>
-                <button class="btn btn-sm btn-outline-primary" onclick="editarColaborador(${colab.id})">
+                <button class="btn btn-sm btn-outline-primary" onclick="editarColaborador(${colab.id})" ${colab.status === 'Inativo' ? 'disabled' : ''}>
                     <i class="bi bi-pencil"></i>
                 </button>
                 <button class="btn btn-sm ${colab.status === 'Ativo' ? 'btn-outline-danger' : 'btn-outline-success'}" 
                         onclick="alterarStatus(${colab.id}, '${colab.status}')">
                     <i class="bi ${colab.status === 'Ativo' ? 'bi-person-x' : 'bi-person-check'}"></i>
                 </button>
-                <button class="btn btn-sm btn-outline-warning" onclick="abrirReajuste(${colab.id}, ${colab.salario_atual})">
+                <button class="btn btn-sm btn-outline-warning" onclick="abrirReajuste(${colab.id}, ${colab.salario_atual})" ${colab.status === 'Inativo' ? 'disabled' : ''}>
                     <i class="bi bi-cash-coin"></i>
                 </button>
             </td>
@@ -69,7 +95,7 @@ async function salvarColaborador() {
         re: document.getElementById('re').value,
         cargo: document.getElementById('cargo').value,
         salario_atual: parseFloat(document.getElementById('salarioAtual').value),
-        empresa: document.getElementById('empresa').value,
+        empresa_id: parseInt(document.getElementById('empresaId').value),
         status: document.getElementById('status').checked ? 'Ativo' : 'Inativo'
     };
 
@@ -94,7 +120,7 @@ async function salvarColaborador() {
         const modal = bootstrap.Modal.getInstance(document.getElementById('modalCadastro'));
         modal.hide();
     } catch (error) {
-        mostrarAlerta('Erro ao salvar colaborador', 'danger');
+        mostrarAlerta('Erro ao salvar colaborador: ' + error.message, 'danger');
     }
 }
 
@@ -110,7 +136,7 @@ async function editarColaborador(id) {
             document.getElementById('re').value = colaborador.re;
             document.getElementById('cargo').value = colaborador.cargo;
             document.getElementById('salarioAtual').value = colaborador.salario_atual;
-            document.getElementById('empresa').value = colaborador.empresa;
+            document.getElementById('empresaId').value = colaborador.empresa_id;
             document.getElementById('status').checked = colaborador.status === 'Ativo';
 
             const modal = new bootstrap.Modal(document.getElementById('modalCadastro'));
@@ -145,12 +171,16 @@ function abrirReajuste(id, salarioAtual) {
     document.getElementById('reajusteId').value = id;
     
     const bonusInput = document.getElementById('bonusAdicional');
+    const infoBonus = document.getElementById('infoBonus');
+    
     if (salarioAtual < 1500) {
         bonusInput.disabled = false;
-        bonusInput.placeholder = 'Bônus disponível';
+        infoBonus.innerHTML = 'Opcional. Disponível para salários abaixo de R$ 1.500,00';
+        infoBonus.className = 'form-text text-success';
     } else {
         bonusInput.disabled = true;
-        bonusInput.placeholder = 'Não disponível (salário ≥ R$ 1.500)';
+        infoBonus.innerHTML = 'Não disponível (salário ≥ R$ 1.500,00)';
+        infoBonus.className = 'form-text text-muted';
     }
 
     const modal = new bootstrap.Modal(document.getElementById('modalReajuste'));

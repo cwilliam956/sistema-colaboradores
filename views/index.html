@@ -21,11 +21,11 @@
     <div class="container">
         <div class="row mb-4">
             <div class="col-md-8">
-                <h2>Colaboradores</h2>
-                <p class="text-muted">Gerencie seus colaboradores de forma simples</p>
+                <h2>Gestão de Colaboradores</h2>
+                <p class="text-muted">Cadastre e gerencie seus colaboradores</p>
             </div>
             <div class="col-md-4 text-end">
-                <button class="btn btn-success" data-bs-toggle="modal" data-bs-target="#modalCadastro">
+                <button class="btn btn-success" onclick="abrirModalCadastro()">
                     <i class="bi bi-person-plus"></i> Novo Colaborador
                 </button>
             </div>
@@ -38,10 +38,11 @@
                         <thead>
                             <tr>
                                 <th>Status</th>
-                                <th>Nome</th>
+                                <th>Nome Completo</th>
                                 <th>RE</th>
                                 <th>Cargo</th>
-                                <th>Salário</th>
+                                <th>Salário Atual</th>
+                                <th>Salário Anterior</th>
                                 <th>Empresa</th>
                                 <th>Ações</th>
                             </tr>
@@ -54,7 +55,7 @@
         </div>
     </div>
 
-    <div class="modal fade" id="modalCadastro">
+    <div class="modal fade" id="modalCadastro" tabindex="-1">
         <div class="modal-dialog">
             <div class="modal-content">
                 <div class="modal-header">
@@ -66,10 +67,10 @@
                         <input type="hidden" id="colaboradorId">
                         <div class="mb-3">
                             <label class="form-label">Nome Completo *</label>
-                            <input type="text" class="form-control" id="nome" required>
+                            <input type="text" class="form-control" id="nomeCompleto" required>
                         </div>
                         <div class="mb-3">
-                            <label class="form-label">RE *</label>
+                            <label class="form-label">RE (Registro Empregado) *</label>
                             <input type="text" class="form-control" id="re" required>
                         </div>
                         <div class="mb-3">
@@ -77,16 +78,17 @@
                             <input type="text" class="form-control" id="cargo" required>
                         </div>
                         <div class="mb-3">
-                            <label class="form-label">Salário *</label>
-                            <input type="number" step="0.01" class="form-control" id="salario" required>
+                            <label class="form-label">Salário Atual (R$) *</label>
+                            <input type="number" class="form-control" id="salarioAtual" step="0.01" required>
                         </div>
                         <div class="mb-3">
-                            <label class="form-label">Empresa</label>
-                            <select class="form-control" id="empresa">
-                                <option value="1">Tech Solutions</option>
-                                <option value="2">Innovate Corp</option>
-                                <option value="3">Digital Works</option>
+                            <label class="form-label">Empresa *</label>
+                            <select class="form-control" id="empresaId" required>
                             </select>
+                        </div>
+                        <div class="mb-3 form-check">
+                            <input type="checkbox" class="form-check-input" id="status" checked>
+                            <label class="form-check-label">Ativo</label>
                         </div>
                     </form>
                 </div>
@@ -97,30 +99,33 @@
             </div>
         </div>
     </div>
-    <div class="modal fade" id="modalReajuste">
+
+    <div class="modal fade" id="modalReajuste" tabindex="-1">
         <div class="modal-dialog">
             <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title">Aplicar Reajuste</h5>
+                <div class="modal-header bg-warning">
+                    <h5 class="modal-title">Reajuste Salarial</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
                     <form id="formReajuste">
                         <input type="hidden" id="reajusteId">
                         <div class="mb-3">
-                            <label>Percentual (%)</label>
-                            <input type="number" class="form-control" id="percentual" value="10" required>
+                            <label class="form-label">Percentual de Aumento (%) *</label>
+                            <input type="number" class="form-control" id="percentualAumento" step="0.01" value="10" required>
                         </div>
                         <div class="mb-3">
-                            <label>Bônus Adicional (R$)</label>
-                            <input type="number" class="form-control" id="bonus">
-                            <small class="text-muted">Apenas para salários abaixo de R$ 1.500</small>
+                            <label class="form-label">Bônus Adicional (R$)</label>
+                            <input type="number" class="form-control" id="bonusAdicional" step="0.01">
+                            <small class="form-text" id="infoBonus">
+                                Opcional. Disponível apenas para salários abaixo de R$ 1.500,00
+                            </small>
                         </div>
                     </form>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                    <button type="button" class="btn btn-warning" onclick="aplicarReajuste()">Aplicar</button>
+                    <button type="button" class="btn btn-warning" onclick="aplicarReajuste()">Aplicar Reajuste</button>
                 </div>
             </div>
         </div>

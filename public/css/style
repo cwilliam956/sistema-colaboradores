@@ -10,6 +10,7 @@ body {
 .card {
     border: none;
     box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+    border-radius: 10px;
 }
 
 .table-hover tbody tr:hover {
@@ -21,13 +22,10 @@ body {
     padding: 0.4em 0.8em;
 }
 
-.btn-group-sm > .btn {
-    padding: 0.25rem 0.5rem;
-}
-
 .modal-content {
     border: none;
-    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.5);
+    box-shadow: 0 0.5rem 2rem rgba(0, 0, 0, 0.15);
+    border-radius: 10px;
 }
 
 .table th {
@@ -37,6 +35,6 @@ body {
     color: #495057;
 }
 
-.alert {
-    border: none;
+.btn-group-sm > .btn {
+    padding: 0.25rem 0.5rem;
 }
