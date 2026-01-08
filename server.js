@@ -25,11 +25,11 @@ app.get('/api/colaboradores', async (req, res) => {
     try {
         const { data, error } = await supabase
             .from('colaboradores')
-            .select('*, empresas(nome)')
-            .order('id');
+            .select('*')
+            .order('nome_completo');
         
         if (error) throw error;
-        res.json(data);
+        res.json(data || []);
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
@@ -37,13 +37,19 @@ app.get('/api/colaboradores', async (req, res) => {
 
 app.post('/api/colaboradores', async (req, res) => {
     try {
+        const colaborador = {
+            ...req.body,
+            salario_anterior: null,
+            status: 'Ativo',
+            data_admissao: new Date().toISOString().split('T')[0]
+        };
+        
         const { data, error } = await supabase
             .from('colaboradores')
-            .insert([req.body])
-            .select();
+            .insert([colaborador]);
         
         if (error) throw error;
-        res.json(data[0]);
+        res.json({ success: true, id: data[0].id });
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
@@ -54,11 +60,10 @@ app.put('/api/colaboradores/:id', async (req, res) => {
         const { data, error } = await supabase
             .from('colaboradores')
             .update(req.body)
-            .eq('id', req.params.id)
-            .select();
+            .eq('id', req.params.id);
         
         if (error) throw error;
-        res.json(data[0]);
+        res.json({ success: true });
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
@@ -67,19 +72,17 @@ app.put('/api/colaboradores/:id', async (req, res) => {
 app.patch('/api/colaboradores/:id/status', async (req, res) => {
     try {
         const { status } = req.body;
-        const updateData = {
-            status: status,
-            data_desativacao: status === 'Inativo' ? new Date().toISOString().split('T')[0] : null
-        };
         
-        const { data, error } = await supabase
+        const { error } = await supabase
             .from('colaboradores')
-            .update(updateData)
-            .eq('id', req.params.id)
-            .select();
+            .update({ 
+                status: status,
+                data_desativacao: status === 'Inativo' ? new Date().toISOString().split('T')[0] : null
+            })
+            .eq('id', req.params.id);
         
         if (error) throw error;
-        res.json(data[0]);
+        res.json({ success: true });
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
@@ -102,22 +105,20 @@ app.post('/api/colaboradores/:id/reajuste', async (req, res) => {
         if (colaborador.salario_atual < 1500 && bonus) {
             novoSalario += bonus;
         }
-        
-        const { data: updatedColab, error: updateError } = await supabase
+                const { error: updateError } = await supabase
             .from('colaboradores')
             .update({
                 salario_anterior: colaborador.salario_atual,
                 salario_atual: novoSalario
             })
-            .eq('id', req.params.id)
-            .select();
+            .eq('id', req.params.id);
         
         if (updateError) throw updateError;
         
-        res.json({
-            success: true,
+        res.json({ 
+            success: true, 
             novoSalario: novoSalario,
-            colaborador: updatedColab[0]
+            salarioAnterior: colaborador.salario_atual
         });
         
     } catch (error) {
@@ -125,21 +126,6 @@ app.post('/api/colaboradores/:id/reajuste', async (req, res) => {
     }
 });
 
-app.get('/api/empresas', async (req, res) => {
-    try {
-        const { data, error } = await supabase
-            .from('empresas')
-            .select('*');
-        
-        if (error) throw error;
-        res.json(data);
-    } catch (error) {
-        res.status(500).json({ error: error.message });
-    }
-});
-
-// Iniciar servidor
 app.listen(PORT, () => {
-    console.log(`Sistema rodando: http://localhost:${PORT}`);
-    console.log(`Supabase conectado`);
+    console.log(`Servidor rodando: http://localhost:${PORT}`);
 });
