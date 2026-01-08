@@ -7,33 +7,27 @@ const { createClient } = require('@supabase/supabase-js');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Configurar Supabase
-const supabaseUrl = process.env.SUPABASE_URL || 'https://quogfnghodblondzlkfm.supabase.co';
-const supabaseKey = process.env.SUPABASE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF1b2dmbmdob2RibG9uZHpsa2ZtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzM2Mjg4ODMsImV4cCI6MjA0OTIwNDg4M30.3fVILyWn0Jou1iDyE4Bhdg_BQyiin1K';
-const supabase = createClient(supabaseUrl, supabaseKey);
+const supabase = createClient(
+    process.env.SUPABASE_URL,
+    process.env.SUPABASE_KEY
+);
 
-// Middleware
 app.use(cors());
 app.use(express.json());
 app.use(express.static('public'));
 app.use(express.static('views'));
 
-// Rota principal
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'views', 'index.html'));
 });
 
-// API: Listar todos colaboradores
 app.get('/api/colaboradores', async (req, res) => {
     try {
         const { data, error } = await supabase
             .from('colaboradores')
-            .select(`
-                *,
-                empresas (nome)
-            `)
-            .order('id', { ascending: true });
-
+            .select('*, empresas(nome)')
+            .order('id');
+        
         if (error) throw error;
         res.json(data);
     } catch (error) {
@@ -41,169 +35,102 @@ app.get('/api/colaboradores', async (req, res) => {
     }
 });
 
-// API: Buscar colaborador por ID
-app.get('/api/colaboradores/:id', async (req, res) => {
-    try {
-        const { data, error } = await supabase
-            .from('colaboradores')
-            .select(`
-                *,
-                empresas (nome)
-            `)
-            .eq('id', req.params.id)
-            .single();
-
-        if (error) throw error;
-        res.json(data);
-    } catch (error) {
-        res.status(500).json({ error: error.message });
-    }
-});
-
-// API: Criar novo colaborador
 app.post('/api/colaboradores', async (req, res) => {
     try {
         const { data, error } = await supabase
             .from('colaboradores')
-            .insert([{
-                ...req.body,
-                created_at: new Date(),
-                updated_at: new Date()
-            }])
-            .select()
-            .single();
-
+            .insert([req.body])
+            .select();
+        
         if (error) throw error;
-        res.json(data);
+        res.json(data[0]);
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
 });
 
-// API: Atualizar colaborador
 app.put('/api/colaboradores/:id', async (req, res) => {
     try {
         const { data, error } = await supabase
             .from('colaboradores')
-            .update({
-                ...req.body,
-                updated_at: new Date()
-            })
+            .update(req.body)
             .eq('id', req.params.id)
-            .select()
-            .single();
-
-        if (error) throw error;
-        res.json(data);
-    } catch (error) {
-        res.status(500).json({ error: error.message });
-    }
-});
-
-// API: Aplicar reajuste salarial
-app.post('/api/colaboradores/:id/reajuste', async (req, res) => {
-    try {
-        const { percentual, bonus } = req.body;
+            .select();
         
-        // 1. Buscar colaborador
-        const { data: colaborador, error: errorColab } = await supabase
-            .from('colaboradores')
-            .select('*')
-            .eq('id', req.params.id)
-            .single();
-
-        if (errorColab) throw errorColab;
-        if (!colaborador) {
-            return res.status(404).json({ error: 'Colaborador não encontrado' });
-        }
-
-        // 2. Calcular novo salário
-        let novoSalario = colaborador.salario_atual * (1 + percentual / 100);
-        
-        // 3. Aplicar bônus se salário < 1500 e bônus informado
-        if (colaborador.salario_atual < 1500 && bonus) {
-            novoSalario += bonus;
-        }
-
-        // 4. Atualizar colaborador
-        const { data: updatedColab, error: updateError } = await supabase
-            .from('colaboradores')
-            .update({
-                salario_anterior: colaborador.salario_atual,
-                salario_atual: novoSalario,
-                updated_at: new Date()
-            })
-            .eq('id', req.params.id)
-            .select()
-            .single();
-
-        if (updateError) throw updateError;
-
-        // 5. Registrar no histórico
-        const { error: histError } = await supabase
-            .from('historico_reajustes')
-            .insert({
-                colaborador_id: req.params.id,
-                percentual_aumento: percentual,
-                bonus_adicional: bonus || 0,
-                salario_anterior: colaborador.salario_atual,
-                salario_novo: novoSalario,
-                data_reajuste: new Date()
-            });
-
-        if (histError) throw histError;
-
-        res.json({
-            success: true,
-            message: 'Reajuste aplicado com sucesso',
-            salarioAnterior: colaborador.salario_atual,
-            novoSalario: novoSalario,
-            colaborador: updatedColab
-        });
-
-    } catch (error) {
-        res.status(500).json({ error: error.message });
-    }
-});
-
-// API: Listar empresas
-app.get('/api/empresas', async (req, res) => {
-    try {
-        const { data, error } = await supabase
-            .from('empresas')
-            .select('*')
-            .order('nome');
-
         if (error) throw error;
-        res.json(data);
+        res.json(data[0]);
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
 });
 
-// API: Alterar status do colaborador
 app.patch('/api/colaboradores/:id/status', async (req, res) => {
     try {
         const { status } = req.body;
-        
         const updateData = {
             status: status,
-            updated_at: new Date()
+            data_desativacao: status === 'Inativo' ? new Date().toISOString().split('T')[0] : null
         };
         
-        if (status === 'Inativo') {
-            updateData.data_desativacao = new Date();
-        } else {
-            updateData.data_desativacao = null;
-        }
-
         const { data, error } = await supabase
             .from('colaboradores')
             .update(updateData)
             .eq('id', req.params.id)
-            .select()
-            .single();
+            .select();
+        
+        if (error) throw error;
+        res.json(data[0]);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
 
+app.post('/api/colaboradores/:id/reajuste', async (req, res) => {
+    try {
+        const { percentual, bonus } = req.body;
+        
+        const { data: colaborador, error: fetchError } = await supabase
+            .from('colaboradores')
+            .select('*')
+            .eq('id', req.params.id)
+            .single();
+        
+        if (fetchError) throw fetchError;
+        
+        let novoSalario = colaborador.salario_atual * (1 + percentual / 100);
+        
+        if (colaborador.salario_atual < 1500 && bonus) {
+            novoSalario += bonus;
+        }
+        
+        const { data: updatedColab, error: updateError } = await supabase
+            .from('colaboradores')
+            .update({
+                salario_anterior: colaborador.salario_atual,
+                salario_atual: novoSalario
+            })
+            .eq('id', req.params.id)
+            .select();
+        
+        if (updateError) throw updateError;
+        
+        res.json({
+            success: true,
+            novoSalario: novoSalario,
+            colaborador: updatedColab[0]
+        });
+        
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+app.get('/api/empresas', async (req, res) => {
+    try {
+        const { data, error } = await supabase
+            .from('empresas')
+            .select('*');
+        
         if (error) throw error;
         res.json(data);
     } catch (error) {
@@ -213,7 +140,6 @@ app.patch('/api/colaboradores/:id/status', async (req, res) => {
 
 // Iniciar servidor
 app.listen(PORT, () => {
-    console.log(`✅ Servidor rodando na porta ${PORT}`);
-    console.log(`📊 Acesse: http://localhost:${PORT}`);
-    console.log(`🔗 Supabase URL: ${supabaseUrl}`);
+    console.log(`Sistema rodando: http://localhost:${PORT}`);
+    console.log(`Supabase conectado`);
 });
