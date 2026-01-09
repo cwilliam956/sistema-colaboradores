@@ -1,137 +1,88 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="pt-br">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sistema de Colaboradores</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.8.1/font/bootstrap-icons.css">
-    <link rel="stylesheet" href="/css/style.css">
+  <meta charset="UTF-8">
+  <title>Sistema de Colaboradores</title>
+
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="/css/style.css">
 </head>
 <body>
-    <nav class="navbar navbar-dark bg-primary mb-4">
-        <div class="container">
-            <span class="navbar-brand">
-                <i class="bi bi-people-fill me-2"></i>
-                Sistema de Colaboradores
-            </span>
-        </div>
-    </nav>
 
-    <div class="container">
-        <div class="row mb-4">
-            <div class="col-md-8">
-                <h2>Gestão de Colaboradores</h2>
-                <p class="text-muted">Cadastre e gerencie seus colaboradores</p>
-            </div>
-            <div class="col-md-4 text-end">
-                <button class="btn btn-success" onclick="abrirModalCadastro()">
-                    <i class="bi bi-person-plus"></i> Novo Colaborador
-                </button>
-            </div>
-        </div>
-
-        <div class="card">
-            <div class="card-body">
-                <div class="table-responsive">
-                    <table class="table table-hover">
-                        <thead>
-                            <tr>
-                                <th>Status</th>
-                                <th>Nome Completo</th>
-                                <th>RE</th>
-                                <th>Cargo</th>
-                                <th>Salário Atual</th>
-                                <th>Salário Anterior</th>
-                                <th>Empresa</th>
-                                <th>Ações</th>
-                            </tr>
-                        </thead>
-                        <tbody id="tabelaColaboradores">
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
+<div class="container mt-5">
+  <div class="card shadow">
+    <div class="card-header bg-primary text-white">
+      <h4 class="mb-0">Sistema de Gerenciamento de Colaboradores</h4>
     </div>
 
-    <div class="modal fade" id="modalCadastro" tabindex="-1">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title">Novo Colaborador</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body">
-                    <form id="formColaborador">
-                        <input type="hidden" id="colaboradorId">
-                        <div class="mb-3">
-                            <label class="form-label">Nome Completo *</label>
-                            <input type="text" class="form-control" id="nomeCompleto" required>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label">RE (Registro Empregado) *</label>
-                            <input type="text" class="form-control" id="re" required>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label">Cargo *</label>
-                            <input type="text" class="form-control" id="cargo" required>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label">Salário Atual (R$) *</label>
-                            <input type="number" class="form-control" id="salarioAtual" step="0.01" required>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label">Empresa *</label>
-                            <select class="form-control" id="empresaId" required>
-                            </select>
-                        </div>
-                        <div class="mb-3 form-check">
-                            <input type="checkbox" class="form-check-input" id="status" checked>
-                            <label class="form-check-label">Ativo</label>
-                        </div>
-                    </form>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                    <button type="button" class="btn btn-primary" onclick="salvarColaborador()">Salvar</button>
-                </div>
-            </div>
+    <div class="card-body">
+      <form id="formColaborador" class="row g-3 mb-4">
+        <div class="col-md-4">
+          <input type="text" class="form-control" placeholder="Nome completo" id="nome" required>
         </div>
-    </div>
-
-    <div class="modal fade" id="modalReajuste" tabindex="-1">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header bg-warning">
-                    <h5 class="modal-title">Reajuste Salarial</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body">
-                    <form id="formReajuste">
-                        <input type="hidden" id="reajusteId">
-                        <div class="mb-3">
-                            <label class="form-label">Percentual de Aumento (%) *</label>
-                            <input type="number" class="form-control" id="percentualAumento" step="0.01" value="10" required>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label">Bônus Adicional (R$)</label>
-                            <input type="number" class="form-control" id="bonusAdicional" step="0.01">
-                            <small class="form-text" id="infoBonus">
-                                Opcional. Disponível apenas para salários abaixo de R$ 1.500,00
-                            </small>
-                        </div>
-                    </form>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                    <button type="button" class="btn btn-warning" onclick="aplicarReajuste()">Aplicar Reajuste</button>
-                </div>
-            </div>
+        <div class="col-md-2">
+          <input type="text" class="form-control" placeholder="RE" id="re" required>
         </div>
-    </div>
+        <div class="col-md-3">
+          <input type="text" class="form-control" placeholder="Cargo" id="cargo" required>
+        </div>
+        <div class="col-md-2">
+          <input type="number" class="form-control" placeholder="Salário" id="salario" required>
+        </div>
+        <div class="col-md-1">
+          <button class="btn btn-success w-100">Salvar</button>
+        </div>
+      </form>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="/js/app.js"></script>
+      <table class="table table-hover align-middle">
+        <thead class="table-light">
+          <tr>
+            <th>Nome</th>
+            <th>RE</th>
+            <th>Cargo</th>
+            <th>Salário</th>
+            <th>Status</th>
+            <th>Empresa</th>
+            <th>Ações</th>
+          </tr>
+        </thead>
+        <tbody id="listaColaboradores"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="modalEditar" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Editar Colaborador</h5>
+        <button class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="editId">
+        <div class="mb-3">
+          <label>Nome</label>
+          <input class="form-control" id="editNome">
+        </div>
+        <div class="mb-3">
+          <label>Cargo</label>
+          <input class="form-control" id="editCargo">
+        </div>
+        <div class="mb-3">
+          <label>Salário</label>
+          <input class="form-control" type="number" id="editSalario">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button class="btn btn-primary" onclick="salvarEdicao()">Salvar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script src="/js/app.js"></script>
 </body>
 </html>
