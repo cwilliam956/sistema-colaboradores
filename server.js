@@ -6,9 +6,6 @@ import path from 'path';
 
 dotenv.config();
 
-console.log('SUPABASE_URL:', process.env.SUPABASE_URL);
-console.log('SUPABASE_KEY EXISTE?', !!process.env.SUPABASE_KEY);
-
 const app = express();
 const __dirname = path.resolve();
 
@@ -50,39 +47,43 @@ app.get('/colaboradores', async (req, res) => {
 });
 
 app.post('/colaboradores', async (req, res) => {
-  console.log('REQ BODY:', req.body);
+  try {
+    const { nome_completo, re, cargo, salario_atual } = req.body;
 
-  const { nome_completo, re, cargo, salario_atual } = req.body;
+    if (!nome_completo || !re || !cargo || !salario_atual) {
+      return res.status(400).json({ message: 'Campos obrigatórios ausentes' });
+    }
 
-  const { data: empresa, error: empresaError } = await supabase
-    .from('empresas')
-    .select('id')
-    .limit(1)
-    .single();
+    const { data: empresa } = await supabase
+      .from('empresas')
+      .select('id')
+      .limit(1)
+      .single();
 
-  console.log('EMPRESA:', empresa);
-  console.log('EMPRESA ERROR:', empresaError);
+    if (!empresa) {
+      return res.status(400).json({ message: 'Nenhuma empresa cadastrada' });
+    }
 
-  const { data, error } = await supabase
-    .from('colaboradores')
-    .insert([{
+    const { data, error } = await supabase.from('colaboradores').insert([{
       nome_completo,
       re,
       cargo,
       salario_atual,
       salario_anterior: salario_atual,
       empresa_id: empresa.id
-    }])
-    .select();
+    }]).select();
 
-  console.log('INSERT DATA:', data);
-  console.log('INSERT ERROR:', error);
+    if (error) {
+      if (error.code === '23505') {
+        return res.status(400).json({ message: 'RE já cadastrado' });
+      }
+      return res.status(500).json(error);
+    }
 
-  if (error) {
-    return res.status(500).json(error);
+    res.json({ message: 'INSERIU', data });
+  } catch {
+    res.status(500).json({ message: 'Erro interno' });
   }
-
-  res.json({ message: 'INSERIU', data });
 });
 
 app.put('/colaboradores/:id', async (req, res) => {
@@ -117,17 +118,69 @@ app.put('/colaboradores/:id/status', async (req, res) => {
   res.json({ message: 'Status atualizado' });
 });
 
+app.post('/colaboradores/:id/reajuste', async (req, res) => {
+  try {
+    const { percentual, bonus } = req.body;
+
+    if (!percentual || percentual <= 0) {
+      return res.status(400).json({ message: 'Percentual inválido' });
+    }
+
+    const { data: colaborador, error } = await supabase
+      .from('colaboradores')
+      .select('*')
+      .eq('id', req.params.id)
+      .single();
+
+    if (error || !colaborador) {
+      return res.status(404).json({ message: 'Colaborador não encontrado' });
+    }
+
+    const salarioAnterior = colaborador.salario_atual;
+    let salarioNovo = salarioAnterior + (salarioAnterior * percentual / 100);
+
+    if (salarioAnterior < 1500 && bonus) {
+      salarioNovo += Number(bonus);
+    }
+
+    salarioNovo = Number(salarioNovo.toFixed(2));
+
+    const { error: updateError } = await supabase
+      .from('colaboradores')
+      .update({
+        salario_anterior: salarioAnterior,
+        salario_atual: salarioNovo,
+        updated_at: new Date()
+      })
+      .eq('id', colaborador.id);
+
+    if (updateError) {
+      return res.status(500).json(updateError);
+    }
+
+    const { error: historicoError } = await supabase
+      .from('historico_reajustes')
+      .insert([{
+        colaborador_id: colaborador.id,
+        percentual_aumento: percentual,
+        bonus_adicional: bonus || 0,
+        salario_anterior: salarioAnterior,
+        salario_novo: salarioNovo
+      }]);
+
+    if (historicoError) {
+      return res.status(500).json(historicoError);
+    }
+
+    res.json({
+      message: 'Reajuste aplicado e registrado com sucesso'
+    });
+
+  } catch {
+    res.status(500).json({ message: 'Erro no reajuste' });
+  }
+});
+
 app.listen(process.env.PORT, () => {
   console.log(`Servidor rodando em http://localhost:${process.env.PORT}`);
 });
-
-const testeSupabase = async () => {
-  const { data, error } = await supabase
-    .from('empresas')
-    .select('*');
-
-  console.log('TESTE SUPABASE DATA:', data);
-  console.log('TESTE SUPABASE ERROR:', error);
-};
-
-testeSupabase();
