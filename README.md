@@ -33,6 +33,6 @@ Frontend: React.js + Bootstrap 5 + Axios
 
 Backend: Node.js + Express + MySQL2
 
-Banco de Dados: MySQL (com script de dados iniciais)
+Banco de Dados: PostgreSQL (com script de dados iniciais)
 
 Versionamento: Git + GitHub
