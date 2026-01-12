@@ -31,7 +31,7 @@ Feedback visual para todas as ações
 Stack Tecnológica
 Frontend: React.js + Bootstrap 5 + Axios
 
-Backend: Node.js + Express + PostegreSQL
+Backend: Node.js + Express 
 
 Banco de Dados: PostgreSQL (com script de dados iniciais)
 
